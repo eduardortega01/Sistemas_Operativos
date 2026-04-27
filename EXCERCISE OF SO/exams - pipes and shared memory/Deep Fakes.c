@@ -1,7 +1,5 @@
 // Taller deepfakes
-// Carlos Sánchez 2022114027
-// Daniel Puerta 2022114046
-// Dylan De Vega 2023114115
+
 
 #include <stdlib.h>
 #include <stdio.h>
