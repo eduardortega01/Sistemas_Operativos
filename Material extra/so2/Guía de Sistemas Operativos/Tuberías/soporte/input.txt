@@ -1,0 +1,6 @@
+5
+REQ: Usuario no puede iniciar sesión; categoría: acceso
+REQ: URGENTE; El servidor principal está en caída total
+INVALID solicitud sin formato adecuado
+REQ: URGENTE; El usuario reporta lentitud
+REQ: URGENTE; hay bloqueo de red para todos los usuarios  

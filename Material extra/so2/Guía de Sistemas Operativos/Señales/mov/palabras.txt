@@ -1,0 +1,10 @@
+Mov
+Add
+Sub
+Mul
+Div
+Cmp
+Jmp
+Push
+Pop
+rot

@@ -1,0 +1,183 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+
+//TAMANIO MAX DEL BUFFER
+#define BUFFER_SIZE 1024
+
+void print_debug_tree(){
+    char cmd[50];
+    sprintf(cmd, "pstree -lp %d", getpid());
+    system(cmd);
+  }
+
+void proceso_hijo1(int pipe_escritura, char *nombre_archivo){
+    FILE *archivo =fopen(nombre_archivo, "r");
+    if(archivo==NULL){
+        perror("Error al abrir el archivo");
+        exit(1);
+    }
+    char contenido[BUFFER_SIZE];
+    size_t bytes_leidos = fread(contenido, 1, BUFFER_SIZE -1, archivo);
+    contenido[bytes_leidos] = '\0';
+    fclose(archivo);
+    printf("%s [%d]\n", contenido, getpid());
+    write(pipe_escritura, contenido, strlen(contenido)+1);
+    close(pipe_escritura);
+    exit(0);
+}
+
+void proceso_nieto1(int pipe_lectura, int pipe_escritura){
+    char buffer[BUFFER_SIZE];
+    read(pipe_lectura, buffer, BUFFER_SIZE);
+    printf("%s [%d]", buffer, getpid());
+    write(pipe_escritura, buffer, strlen(buffer)+1);
+    close(pipe_lectura);
+    close(pipe_escritura);
+    exit(0);
+}
+
+void proceso_nieto2(int pipe_lectura, int pipe_escritura){
+    char buffer[BUFFER_SIZE];
+    read(pipe_lectura, buffer, BUFFER_SIZE);
+    printf("%s [%d]\n", buffer, getpid());
+    write(pipe_escritura, buffer, strlen(buffer)+1);
+    close(pipe_lectura);
+    close(pipe_escritura);
+    exit(0);
+}
+
+void proceso_hijo2(int pipe_lectura_padre, int pipe_escritura_padre){
+    int pipe_hijo2_nieto2[2];
+    int pipe_nieto2_hijo2[2];
+    int pipe_hijo2_nieto1[2];
+    int pipe_nieto1_hijo2[2];
+    if (pipe(pipe_hijo2_nieto2) == -1 || pipe(pipe_nieto2_hijo2) == -1 ||
+        pipe(pipe_hijo2_nieto1) == -1 || pipe(pipe_nieto1_hijo2) == -1) {
+        perror("Error al crear tuberías de nietos");
+        exit(1);
+    }
+
+    pid_t pid_nieto2 = fork();
+    if(pid_nieto2==-1){
+        perror("Error al crear nieto2");
+        exit(EXIT_FAILURE);
+    }
+    if(pid_nieto2==0){
+        close(pipe_hijo2_nieto2[1]);
+        close(pipe_nieto2_hijo2[0]);
+        close(pipe_hijo2_nieto1[0]);
+        close(pipe_hijo2_nieto1[1]);
+        close(pipe_nieto1_hijo2[0]);
+        close(pipe_nieto1_hijo2[1]);
+        close(pipe_lectura_padre);
+        close(pipe_escritura_padre);
+        
+        proceso_nieto2(pipe_hijo2_nieto2[0], pipe_nieto2_hijo2[1]);
+    }
+    
+    pid_t pid_nieto1 = fork();
+    if(pid_nieto1 == -1){
+        perror("error al crear nieto1");
+        exit(EXIT_FAILURE);
+    }
+    if(pid_nieto1==0){
+        close(pipe_hijo2_nieto1[1]);
+        close(pipe_nieto1_hijo2[0]);
+        close(pipe_hijo2_nieto2[0]);
+        close(pipe_hijo2_nieto2[1]);
+        close(pipe_nieto2_hijo2[0]);
+        close(pipe_nieto2_hijo2[1]);
+        close(pipe_lectura_padre);
+        close(pipe_escritura_padre);
+        
+        proceso_nieto1(pipe_hijo2_nieto1[0], pipe_nieto1_hijo2[1]);
+    }
+    close(pipe_hijo2_nieto2[0]);
+    close(pipe_nieto2_hijo2[1]);
+    close(pipe_hijo2_nieto1[0]);
+    close(pipe_nieto1_hijo2[1]);
+    char buffer[BUFFER_SIZE];
+    read(pipe_lectura_padre, buffer, BUFFER_SIZE);
+    printf("%s [%d]\n", buffer, getpid());
+    write(pipe_hijo2_nieto2[1], buffer, strlen(buffer) + 1);
+    close(pipe_hijo2_nieto2[1]);
+    read(pipe_nieto2_hijo2[0], buffer, BUFFER_SIZE);
+    close(pipe_nieto2_hijo2[0]);
+    printf("%s [%d]\n", buffer, getpid());
+    write(pipe_hijo2_nieto1[1], buffer, strlen(buffer) + 1);
+    close(pipe_hijo2_nieto1[1]);
+    read(pipe_nieto1_hijo2[0], buffer, BUFFER_SIZE);
+    close(pipe_nieto1_hijo2[0]);
+    printf("%s [%d]\n", buffer, getpid());
+    write(pipe_escritura_padre, buffer, strlen(buffer) + 1);
+    waitpid(pid_nieto2, NULL, 0);
+    waitpid(pid_nieto1, NULL, 0);
+    close(pipe_lectura_padre);
+    close(pipe_escritura_padre);
+    exit(0);
+}
+
+int main(int argc, char *argv[]){
+    if(argc<2){
+        printf("Falto archivo");
+        exit(1);
+    }
+    int pipe_hijo1_padre[2];
+    int pipe_padre_hijo2[2];
+    int pipe_hijo2_padre[2];
+    if (pipe(pipe_hijo1_padre) == -1 || pipe(pipe_padre_hijo2) == -1 || pipe(pipe_hijo2_padre) == -1) {
+        perror("Error al crear las tuberías");
+        exit(1);
+    }
+    pid_t pid_hijo1 = fork();
+    if(pid_hijo1 == -1){
+        perror("error al crear hijo1");
+        exit(1);
+    }
+    if(pid_hijo1==0){
+        close(pipe_hijo1_padre[0]);
+        close(pipe_padre_hijo2[0]);
+        close(pipe_padre_hijo2[1]);
+        close(pipe_hijo2_padre[0]);
+        close(pipe_hijo2_padre[1]);
+        
+        proceso_hijo1(pipe_hijo1_padre[1], argv[1]);
+    }
+    pid_t pid_hijo2 = fork();
+    if(pid_hijo2==-1){
+        perror("Error al crear hijo2");
+        exit(1);
+    }
+    if(pid_hijo2==0){
+        close(pipe_hijo1_padre[0]);
+        close(pipe_hijo1_padre[1]);
+        close(pipe_padre_hijo2[1]);
+        close(pipe_hijo2_padre[0]);
+        proceso_hijo2(pipe_padre_hijo2[0], pipe_hijo2_padre[1]);
+    }
+    close(pipe_hijo1_padre[1]);
+    close(pipe_padre_hijo2[0]);
+    close(pipe_hijo2_padre[1]);
+    char buffer[BUFFER_SIZE];
+    read(pipe_hijo1_padre[0], buffer, BUFFER_SIZE);
+    close(pipe_hijo1_padre[0]);
+    printf("%s [%d]\n", buffer, getpid());
+    write(pipe_padre_hijo2[1], buffer, strlen(buffer)+1);
+    close(pipe_padre_hijo2[1]);
+    read(pipe_hijo2_padre[0], buffer, BUFFER_SIZE);
+    close(pipe_hijo2_padre[0]);
+    printf("%s [%d]\n", buffer, getpid());
+    print_debug_tree();
+    wait(NULL);
+    wait(NULL);
+
+    return 0;      
+
+
+    
+}
+

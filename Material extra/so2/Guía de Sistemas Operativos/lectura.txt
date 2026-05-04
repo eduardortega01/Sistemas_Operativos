@@ -1,0 +1,756 @@
+1. Lectura básica de archivos: 
+
+FILE *archivo = fopen("datos.txt", "r");
+if (archivo == NULL) {
+    perror("Error al abrir archivo");
+    return 1;
+}
+
+2. Leer línea por línea:
+
+char linea[256];
+while (fgets(linea, sizeof(linea), archivo) != NULL) {
+    // Procesar cada línea
+}
+
+3. Buscar palabras específicas: 
+
+if (strstr(linea, "palabra_buscada") != NULL) {
+    // La línea contiene "palabra_buscada"
+}
+
+4. Buscar delimitadores
+
+if (strchr(linea, ':') != NULL) {
+    // La línea contiene el delimitador ':'
+}
+
+5. Ignorar palabras específicas: Puedes usar strstr() para verificar si
+si una línea contiene palabras que quieres ignorar: 
+
+if (strstr(linea, "IGNORAR") == NULL) {
+    // Procesar solo si NO contiene "IGNORAR"
+}
+
+EJEMPLO :
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+int main() {
+    FILE *archivo;
+    char linea[256];
+    char *palabras_ignorar[] = {"SPAM", "ERROR", "DEBUG"};
+    int num_palabras_ignorar = 3;
+    
+    // Abrir archivo
+    archivo = fopen("datos.txt", "r");
+    if (archivo == NULL) {
+        perror("Error al abrir el archivo");
+        return 1;
+    }
+    
+    printf("=== Procesando archivo ===\n\n");
+    
+    // Leer línea por línea
+    while (fgets(linea, sizeof(linea), archivo) != NULL) {
+        int ignorar = 0;
+        
+        // Verificar si la línea contiene palabras a ignorar
+        for (int i = 0; i < num_palabras_ignorar; i++) {
+            if (strstr(linea, palabras_ignorar[i]) != NULL) {
+                ignorar = 1;
+                printf("[IGNORADA] %s", linea);
+                break;
+            }
+        }
+        
+        // Si no se debe ignorar, procesarla
+        if (!ignorar) {
+            // Verificar si contiene un delimitador ':'
+            if (strchr(linea, ':') != NULL) {
+                printf("[CON DELIMITADOR ':'] %s", linea);
+                
+                // Separar por el delimitador
+                char copia[256];
+                strcpy(copia, linea);
+                char *token = strtok(copia, ":");
+                printf("  -> Antes del ':' = %s\n", token);
+                token = strtok(NULL, ":");
+                if (token != NULL) {
+                    printf("  -> Después del ':' = %s", token);
+                }
+            }
+            // Verificar si contiene un delimitador '|'
+            else if (strchr(linea, '|') != NULL) {
+                printf("[CON DELIMITADOR '|'] %s", linea);
+            }
+            // Línea sin delimitadores especiales
+            else {
+                printf("[PROCESADA] %s", linea);
+            }
+        }
+        
+        printf("\n");
+    }
+    
+    fclose(archivo);
+    return 0;
+}
+
+/*
+EJEMPLO DE ARCHIVO datos.txt:
+
+usuario:password123
+nombre|apellido
+Esta es una línea normal
+ERROR: Algo falló
+admin:root
+SPAM mensaje publicitario
+DEBUG modo desarrollador
+servidor:192.168.1.1
+archivo|documento|final
+
+SALIDA ESPERADA:
+=== Procesando archivo ===
+
+[CON DELIMITADOR ':'] usuario:password123
+  -> Antes del ':' = usuario
+  -> Después del ':' = password123
+
+[CON DELIMITADOR '|'] nombre|apellido
+
+[PROCESADA] Esta es una línea normal
+
+[IGNORADA] ERROR: Algo falló
+
+[CON DELIMITADOR ':'] admin:root
+  -> Antes del ':' = admin
+  -> Después del ':' = root
+
+[IGNORADA] SPAM mensaje publicitario
+
+[IGNORADA] DEBUG modo desarrollador
+
+[CON DELIMITADOR ':'] servidor:192.168.1.1
+  -> Antes del ':' = servidor
+  -> Después del ':' = 192.168.1.1
+
+[CON DELIMITADOR '|'] archivo|documento|final
+*/
+
+Métodos para buscar palabras en un buffer:
+
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+// MÉTODO 1: Usando strstr() - La más simple
+int metodo1_strstr(char *buffer, char *palabra) {
+    printf("=== Método 1: Usando strstr() ===\n");
+    
+    if (strstr(buffer, palabra) != NULL) {
+        printf("✓ Encontrada '%s' en: '%s'\n\n", palabra, buffer);
+        return 1;
+    }
+    printf("✗ No encontrada '%s'\n\n", palabra);
+    return 0;
+}
+
+// MÉTODO 2: Buscar múltiples palabras
+void metodo2_multiples_palabras(char *buffer) {
+    printf("=== Método 2: Buscar múltiples palabras ===\n");
+    
+    char *palabras_buscar[] = {"ERROR", "WARNING", "INFO", "DEBUG"};
+    int num_palabras = 4;
+    
+    printf("Buffer: '%s'\n", buffer);
+    
+    for (int i = 0; i < num_palabras; i++) {
+        if (strstr(buffer, palabras_buscar[i]) != NULL) {
+            printf("  ✓ Contiene: %s\n", palabras_buscar[i]);
+        }
+    }
+    printf("\n");
+}
+
+// MÉTODO 3: Recorrer carácter por carácter
+void metodo3_caracter_por_caracter(char *buffer, char *palabra) {
+    printf("=== Método 3: Recorrer carácter por carácter ===\n");
+    
+    int buffer_len = strlen(buffer);
+    int palabra_len = strlen(palabra);
+    int encontradas = 0;
+    
+    for (int i = 0; i <= buffer_len - palabra_len; i++) {
+        int match = 1;
+        for (int j = 0; j < palabra_len; j++) {
+            if (buffer[i + j] != palabra[j]) {
+                match = 0;
+                break;
+            }
+        }
+        if (match) {
+            printf("✓ '%s' encontrada en posición %d\n", palabra, i);
+            encontradas++;
+        }
+    }
+    
+    printf("Total encontradas: %d\n\n", encontradas);
+}
+
+// MÉTODO 4: Tokenizar y comparar palabra completa
+void metodo4_tokenizar(char *buffer, char *palabra) {
+    printf("=== Método 4: Tokenizar (palabra completa) ===\n");
+    
+    char copia[256];
+    strcpy(copia, buffer);  // Copiar porque strtok modifica
+    
+    char *token = strtok(copia, " \t\n,.:;!?");
+    int encontradas = 0;
+    
+    while (token != NULL) {
+        if (strcmp(token, palabra) == 0) {
+            printf("✓ Palabra exacta '%s' encontrada\n", palabra);
+            encontradas++;
+        }
+        token = strtok(NULL, " \t\n,.:;!?");
+    }
+    
+    if (encontradas == 0) {
+        printf("✗ Palabra exacta '%s' no encontrada\n", palabra);
+    }
+    printf("\n");
+}
+
+// MÉTODO 5: Buscar con índice y puntero
+void metodo5_con_puntero(char *buffer, char *palabra) {
+    printf("=== Método 5: Buscar todas las ocurrencias ===\n");
+    
+    char *pos = buffer;
+    int contador = 0;
+    
+    while ((pos = strstr(pos, palabra)) != NULL) {
+        int posicion = pos - buffer;
+        printf("  Ocurrencia %d en posición: %d\n", ++contador, posicion);
+        pos++;  // Avanzar para buscar la siguiente
+    }
+    
+    if (contador == 0) {
+        printf("  No se encontró '%s'\n", palabra);
+    } else {
+        printf("  Total: %d ocurrencias\n", contador);
+    }
+    printf("\n");
+}
+
+// MÉTODO 6: Búsqueda case-insensitive (ignorando mayúsculas)
+int metodo6_case_insensitive(char *buffer, char *palabra) {
+    printf("=== Método 6: Búsqueda ignorando mayúsculas ===\n");
+    
+    char buffer_lower[256];
+    char palabra_lower[100];
+    
+    // Convertir a minúsculas
+    for (int i = 0; buffer[i]; i++) {
+        buffer_lower[i] = tolower(buffer[i]);
+    }
+    buffer_lower[strlen(buffer)] = '\0';
+    
+    for (int i = 0; palabra[i]; i++) {
+        palabra_lower[i] = tolower(palabra[i]);
+    }
+    palabra_lower[strlen(palabra)] = '\0';
+    
+    if (strstr(buffer_lower, palabra_lower) != NULL) {
+        printf("✓ '%s' encontrada (ignorando mayúsculas)\n\n", palabra);
+        return 1;
+    }
+    printf("✗ '%s' no encontrada\n\n", palabra);
+    return 0;
+}
+
+// MÉTODO 7: Contar ocurrencias
+int metodo7_contar_ocurrencias(char *buffer, char *palabra) {
+    printf("=== Método 7: Contar ocurrencias ===\n");
+    
+    char *pos = buffer;
+    int contador = 0;
+    int palabra_len = strlen(palabra);
+    
+    while ((pos = strstr(pos, palabra)) != NULL) {
+        contador++;
+        pos += palabra_len;  // Avanzar toda la palabra
+    }
+    
+    printf("'%s' aparece %d veces en el buffer\n\n", palabra, contador);
+    return contador;
+}
+
+// CASO PRÁCTICO: Filtrar líneas que contengan palabras clave
+void caso_practico_filtrar() {
+    printf("=== CASO PRÁCTICO: Filtrar líneas ===\n");
+    
+    char *lineas[] = {
+        "ERROR: Archivo no encontrado",
+        "INFO: Sistema iniciado correctamente",
+        "WARNING: Memoria baja",
+        "DEBUG: Variable x = 10",
+        "INFO: Conexión establecida",
+        "ERROR: Timeout en la conexión"
+    };
+    
+    int num_lineas = 6;
+    char *filtro = "ERROR";
+    
+    printf("Mostrando solo líneas con '%s':\n", filtro);
+    
+    for (int i = 0; i < num_lineas; i++) {
+        if (strstr(lineas[i], filtro) != NULL) {
+            printf("  [%d] %s\n", i, lineas[i]);
+        }
+    }
+    printf("\n");
+}
+
+int main() {
+    char buffer1[] = "Este es un ERROR en el sistema";
+    char buffer2[] = "error Error ERROR eRrOr";
+    char buffer3[] = "El usuario tiene un error de sintaxis";
+    
+    // Probar diferentes métodos
+    metodo1_strstr(buffer1, "ERROR");
+    
+    metodo2_multiples_palabras("WARNING: El sistema tiene un ERROR");
+    
+    metodo3_caracter_por_caracter(buffer2, "error");
+    
+    metodo4_tokenizar(buffer3, "error");
+    
+    metodo5_con_puntero("la palabra la aparece la varias veces", "la");
+    
+    metodo6_case_insensitive(buffer2, "error");
+    
+    metodo7_contar_ocurrencias("test test test", "test");
+    
+    caso_practico_filtrar();
+    
+    return 0;
+}
+
+/*
+SALIDA ESPERADA:
+=== Método 1: Usando strstr() ===
+✓ Encontrada 'ERROR' en: 'Este es un ERROR en el sistema'
+
+=== Método 2: Buscar múltiples palabras ===
+Buffer: 'WARNING: El sistema tiene un ERROR'
+  ✓ Contiene: ERROR
+  ✓ Contiene: WARNING
+
+=== Método 3: Recorrer carácter por carácter ===
+✓ 'error' encontrada en posición 0
+✓ 'error' encontrada en posición 18
+Total encontradas: 2
+
+=== Método 4: Tokenizar (palabra completa) ===
+✓ Palabra exacta 'error' encontrada
+
+=== Método 5: Buscar todas las ocurrencias ===
+  Ocurrencia 1 en posición: 0
+  Ocurrencia 2 en posición: 11
+  Ocurrencia 3 en posición: 22
+  Total: 3 ocurrencias
+
+=== Método 6: Búsqueda ignorando mayúsculas ===
+✓ 'error' encontrada (ignorando mayúsculas)
+
+=== Método 7: Contar ocurrencias ===
+'test' aparece 3 veces en el buffer
+
+=== CASO PRÁCTICO: Filtrar líneas ===
+Mostrando solo líneas con 'ERROR':
+  [0] ERROR: Archivo no encontrado
+  [5] ERROR: Timeout en la conexión
+*/
+
+1. strstr() - LA MÁS COMÚN
+
+if (strstr(buffer, "palabra") != NULL) {
+    // La palabra está en el buffer
+}
+
+2. Buscar múltiples palabras: 
+
+char *palabras[] = {"ERROR", "WARNING", "SPAM"};
+for (int i = 0; i < 3; i++) {
+    if (strstr(buffer, palabras[i]) != NULL) {
+        // Hacer algo
+    }
+}
+
+3. Encontrar todas las ocurrencias:
+
+char *pos = buffer;
+while ((pos = strstr(pos, "palabra")) != NULL) {
+    printf("Encontrada en posición: %ld\n", pos - buffer);
+    pos++;  // Avanzar
+}
+
+strcmp(palabra, "error"): Palabra exacta e igual
+
+// Leer archivo e ignorar líneas con palabras prohibidas
+char linea[256];
+char *prohibidas[] = {"SPAM", "DEBUG", "TEST"};
+
+while (fgets(linea, sizeof(linea), archivo) != NULL) {
+    int ignorar = 0;
+    
+    for (int i = 0; i < 3; i++) {
+        if (strstr(linea, prohibidas[i]) != NULL) {
+            ignorar = 1;
+            break;
+        }
+    }
+    
+    if (!ignorar) {
+        printf("%s", linea);  // Procesar línea válida
+    }
+}
+
+strncmp - Comparar primeros n caracteres
+
+Sintaxis:
+
+int strncmp(const char *str1, const char *str2, size_t n);
+
+Retorna:
+
+-- 0 si los primeros n caracteres son iguales
+-- < 0 si str1 es menor que str2
+-- > 0 si str1 es mayor que str2
+
+¿Para qué sirve?
+
+Es perfecta para: 
+
+-- Verificar si una línea empieza con cierta palabra
+-- Comparar prefijos
+-- Validar comandos
+-- Procesar formatos específicos
+
+Usos típicos en exámenes: 
+
+1. Verificar si una línea empieza con algo:
+
+if (strncmp(linea, "ERROR", 5) == 0) {
+    // Procesar error
+}
+
+2. Ignorar comentarios: 
+
+if (strncmp(linea, "#", 1) == 0) {
+    continue;  // Saltar esta línea
+}
+
+3. Clasificar líneas por tipo: 
+
+if (strncmp(linea, "ERROR:", 6) == 0) {
+    // Es un error
+} else if (strncmp(linea, "INFO:", 5) == 0) {
+    // Es información
+} else if (strncmp(linea, "WARNING:", 8) == 0) {
+    // Es una advertencia
+} 
+
+4. Extraer contenido después del prefijo: 
+
+if (strncmp(linea, "nombre=", 7) == 0) {
+    char *valor = linea + 7;  // Saltar "nombre="
+    printf("Nombre: %s\n", valor);
+} 
+
+ Importante para tu examen: 
+
+ // ✓ CORRECTO - Especifica la longitud exacta
+if (strncmp(linea, "ERROR", 5) == 0)
+
+// ✗ INCORRECTO - Comparará más de lo necesario
+if (strncmp(linea, "ERROR", 10) == 0)
+
+// ✓ MEJOR - Usa strlen para ser dinámico
+if (strncmp(linea, "ERROR", strlen("ERROR")) == 0)
+
+Formas de buscar el carácter ; 
+
+#include <stdio.h>
+#include <string.h>
+
+int main() {
+    // MÉTODO 1: strchr() - LA MÁS COMÚN ⭐
+    printf("=== Método 1: strchr() (Recomendado) ===\n");
+    char linea1[] = "usuario;password;admin";
+    char linea2[] = "sin punto y coma";
+    
+    if (strchr(linea1, ';') != NULL) {
+        printf("✓ '%s' TIENE ';'\n", linea1);
+    }
+    
+    if (strchr(linea2, ';') == NULL) {
+        printf("✗ '%s' NO TIENE ';'\n\n", linea2);
+    }
+    
+    
+    // MÉTODO 2: strchr() para obtener la posición
+    printf("=== Método 2: Obtener posición del ';' ===\n");
+    char datos[] = "nombre;apellido;edad";
+    
+    char *pos = strchr(datos, ';');
+    if (pos != NULL) {
+        int posicion = pos - datos;
+        printf("El ';' está en la posición: %d\n", posicion);
+        printf("Cadena original: %s\n", datos);
+        printf("Antes del ';': ");
+        for (int i = 0; i < posicion; i++) {
+            printf("%c", datos[i]);
+        }
+        printf("\n\n");
+    }
+    
+    
+    // MÉTODO 3: Recorrer carácter por carácter
+    printf("=== Método 3: Recorrer manualmente ===\n");
+    char texto[] = "a;b;c;d";
+    int encontrado = 0;
+    
+    for (int i = 0; texto[i] != '\0'; i++) {
+        if (texto[i] == ';') {
+            encontrado = 1;
+            printf("✓ Encontrado ';' en posición %d\n", i);
+            break;  // Salir al encontrar el primero
+        }
+    }
+    
+    if (!encontrado) {
+        printf("✗ No se encontró ';'\n");
+    }
+    printf("\n");
+    
+    
+    // MÉTODO 4: Contar cuántos ';' hay
+    printf("=== Método 4: Contar ocurrencias ===\n");
+    char csv[] = "campo1;campo2;campo3;campo4";
+    int contador = 0;
+    
+    for (int i = 0; csv[i] != '\0'; i++) {
+        if (csv[i] == ';') {
+            contador++;
+        }
+    }
+    
+    printf("La cadena '%s' tiene %d punto(s) y coma\n\n", csv, contador);
+    
+    
+    // MÉTODO 5: Encontrar todas las posiciones
+    printf("=== Método 5: Encontrar todos los ';' ===\n");
+    char multiple[] = "uno;dos;tres;cuatro";
+    char *ptr = multiple;
+    int posiciones[10];
+    int num_encontrados = 0;
+    
+    while ((ptr = strchr(ptr, ';')) != NULL) {
+        posiciones[num_encontrados] = ptr - multiple;
+        num_encontrados++;
+        ptr++;  // Avanzar para buscar el siguiente
+    }
+    
+    printf("Cadena: %s\n", multiple);
+    printf("Encontrados %d punto(s) y coma en posiciones: ", num_encontrados);
+    for (int i = 0; i < num_encontrados; i++) {
+        printf("%d ", posiciones[i]);
+    }
+    printf("\n\n");
+    
+    
+    // MÉTODO 6: strcspn para encontrar posición
+    printf("=== Método 6: strcspn ===\n");
+    char ejemplo[] = "antes;despues";
+    size_t pos_semicolon = strcspn(ejemplo, ";");
+    
+    if (pos_semicolon < strlen(ejemplo)) {
+        printf("✓ ';' encontrado en posición: %zu\n\n", pos_semicolon);
+    } else {
+        printf("✗ ';' no encontrado\n\n");
+    }
+    
+    
+    // CASO PRÁCTICO 1: Separar por ';'
+    printf("=== CASO PRÁCTICO 1: Separar campos ===\n");
+    char registro[] = "Juan;Perez;30;Colombia";
+    char copia[100];
+    strcpy(copia, registro);
+    
+    printf("Registro: %s\n", registro);
+    printf("Campos separados:\n");
+    
+    char *token = strtok(copia, ";");
+    int campo = 1;
+    while (token != NULL) {
+        printf("  Campo %d: %s\n", campo++, token);
+        token = strtok(NULL, ";");
+    }
+    printf("\n");
+    
+    
+    // CASO PRÁCTICO 2: Validar formato
+    printf("=== CASO PRÁCTICO 2: Validar formato ===\n");
+    char *entradas[] = {
+        "nombre;apellido;edad",
+        "solo_un_campo",
+        "dos;campos",
+        "tres;campos;aqui"
+    };
+    
+    for (int i = 0; i < 4; i++) {
+        int puntos_coma = 0;
+        for (int j = 0; entradas[i][j] != '\0'; j++) {
+            if (entradas[i][j] == ';') {
+                puntos_coma++;
+            }
+        }
+        
+        if (puntos_coma == 2) {
+            printf("✓ '%s' tiene formato correcto (3 campos)\n", entradas[i]);
+        } else {
+            printf("✗ '%s' formato incorrecto (%d campos)\n", 
+                   entradas[i], puntos_coma + 1);
+        }
+    }
+    printf("\n");
+    
+    
+    // CASO PRÁCTICO 3: Procesar líneas de archivo
+    printf("=== CASO PRÁCTICO 3: Filtrar líneas ===\n");
+    char *lineas[] = {
+        "usuario:password",      // Usa ':'
+        "nombre;apellido",       // Usa ';'
+        "campo1|campo2",         // Usa '|'
+        "dato1;dato2;dato3"      // Usa ';'
+    };
+    
+    printf("Líneas que usan ';' como delimitador:\n");
+    for (int i = 0; i < 4; i++) {
+        if (strchr(lineas[i], ';') != NULL) {
+            printf("  -> %s\n", lineas[i]);
+        }
+    }
+    printf("\n");
+    
+    
+    // CASO PRÁCTICO 4: Extraer antes y después del ';'
+    printf("=== CASO PRÁCTICO 4: Dividir en dos partes ===\n");
+    char completo[] = "clave;valor";
+    char *delimitador = strchr(completo, ';');
+    
+    if (delimitador != NULL) {
+        // Extraer la parte antes del ';'
+        char antes[50];
+        int longitud_antes = delimitador - completo;
+        strncpy(antes, completo, longitud_antes);
+        antes[longitud_antes] = '\0';
+        
+        // La parte después del ';'
+        char *despues = delimitador + 1;
+        
+        printf("Original: %s\n", completo);
+        printf("Antes del ';': %s\n", antes);
+        printf("Después del ';': %s\n", despues);
+    }
+    
+    return 0;
+}
+
+/*
+SALIDA ESPERADA:
+=== Método 1: strchr() (Recomendado) ===
+✓ 'usuario;password;admin' TIENE ';'
+✗ 'sin punto y coma' NO TIENE ';'
+
+=== Método 2: Obtener posición del ';' ===
+El ';' está en la posición: 6
+Cadena original: nombre;apellido;edad
+Antes del ';': nombre
+
+=== Método 3: Recorrer manualmente ===
+✓ Encontrado ';' en posición 1
+
+=== Método 4: Contar ocurrencias ===
+La cadena 'campo1;campo2;campo3;campo4' tiene 3 punto(s) y coma
+
+=== Método 5: Encontrar todos los ';' ===
+Cadena: uno;dos;tres;cuatro
+Encontrados 3 punto(s) y coma en posiciones: 3 7 12 
+
+=== Método 6: strcspn ===
+✓ ';' encontrado en posición: 5
+
+=== CASO PRÁCTICO 1: Separar campos ===
+Registro: Juan;Perez;30;Colombia
+Campos separados:
+  Campo 1: Juan
+  Campo 2: Perez
+  Campo 3: 30
+  Campo 4: Colombia
+
+=== CASO PRÁCTICO 2: Validar formato ===
+✓ 'nombre;apellido;edad' tiene formato correcto (3 campos)
+✗ 'solo_un_campo' formato incorrecto (1 campos)
+✗ 'dos;campos' formato incorrecto (2 campos)
+✓ 'tres;campos;aqui' tiene formato correcto (3 campos)
+
+=== CASO PRÁCTICO 3: Filtrar líneas ===
+Líneas que usan ';' como delimitador:
+  -> nombre;apellido
+  -> dato1;dato2;dato3
+
+=== CASO PRÁCTICO 4: Dividir en dos partes ===
+Original: clave;valor
+Antes del ';': clave
+Después del ';': valor
+*/
+
+Método más simple (úsalo en tu examen): 
+
+// Verificar SI tiene ';'
+if (strchr(linea, ';') != NULL) {
+    // SÍ tiene punto y coma
+}
+
+// Verificar SI NO tiene ';'
+if (strchr(linea, ';') == NULL) {
+    // NO tiene punto y coma
+}
+
+Para obtener la posición:
+
+char *pos = strchr(linea, ';');
+if (pos != NULL) {
+    int posicion = pos - linea;
+    printf("Está en la posición: %d\n", posicion);
+}
+
+Para buscar múltiples delimitadores: 
+
+// Buscar ';' o ':' o '|'
+if (strchr(linea, ';') != NULL || 
+    strchr(linea, ':') != NULL || 
+    strchr(linea, '|') != NULL) {
+    // Tiene algún delimitador
+}
+
+// O usando strcspn (más eficiente)
+if (strcspn(linea, ";:|") < strlen(linea)) {
+    // Tiene alguno de estos delimitadores
+}
+

@@ -1,0 +1,9 @@
+-------------- Librerias --------------------------
+#include <stdio.h> -> biblioteca estandar de entrada/salida
+-------------- Tipos de datos ---------------------
+int -> enteros 
+float -> flotante
+char -> caracter - un solo byte
+short ->entero corto
+long -> entero largo
+double -> punto flotante de doble precision
